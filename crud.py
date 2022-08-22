@@ -24,7 +24,7 @@ def get_users(db: Session, skip: int = 0, limit: int = 100):
 
 def create_user(db: Session, user: schemas.UserCreate):
     fake_hashed_password = user.password
-    db_user = models.User(login=user.login, email=user.email, name=user.name, hashed_password=fake_hashed_password, role=10111)
+    db_user = models.User(login=user.login, email=user.email, name=user.name, hashed_password=fake_hashed_password, role=10011)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -32,7 +32,7 @@ def create_user(db: Session, user: schemas.UserCreate):
 
 
 def create_article(db: Session, article: schemas.ArticleCreate):
-    db_article = models.Article(title=article.title, body=article.body, status="Published")
+    db_article = models.Article(title=article.title, body=article.body, status="Draft")
     db.add(db_article)
     db.commit()
     db_reference = models.Reference(id_us=article.login, id_art=db_article.id, id=str(uuid.uuid4()))
