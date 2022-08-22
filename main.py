@@ -82,7 +82,7 @@ def change_published_approved(us_login: str,  art_id: int, db: Session = Depends
     db_user = crud.get_user_by_login(db, login=us_login)
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    if db_user.role == 10001 or 10011:
+    if db_user.role & 0x4 != 0x4:
         raise HTTPException(status_code=403, detail="Permission denied")
     return crud.change_published_approved(db, art_id=art_id)
 
