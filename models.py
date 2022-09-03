@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
-
+from sqlalchemy import DateTime
 import uuid
 
 from database import Base
@@ -34,3 +34,5 @@ class Article(Base):
     status = Column(String)
 
     refers = relationship("Reference", back_populates="articles")
+
+
