@@ -6,3 +6,8 @@ moderator_reader = 0x5
 moderator_writer = 0x6
 moderator_reader_writer = 0x7
 admin = 0xF
+
+draft = "Draft"
+published = "Published"
+approved = "Approved"
+rejected = "Rejected"
