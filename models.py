@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey, BOOLEAN, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy import DateTime
 from sqlalchemy import text
@@ -7,6 +7,7 @@ import uuid
 from database import Base
 
 
+# Связующая таблица: соотношение "many to many"
 class Reference(Base):
     __tablename__ = "reference"
     id_us = Column(Integer, ForeignKey("users.id"), primary_key=True)
@@ -16,28 +17,33 @@ class Reference(Base):
     articles = relationship("Article", back_populates="refers")
 
 
+# Таблица пользователей
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True)
-    name = Column(String, unique=True)
+    name = Column(String, unique=True,)
     hashed_password = Column(String)
     role = Column(Integer)
+    blocked = Column(BOOLEAN, default=False)
 
     refer = relationship("Reference", back_populates="users")
     tokens = relationship("Token", back_populates="users")
+    comment = relationship("Comment", back_populates="users")
 
 
+# Таблица статей
 class Article(Base):
     __tablename__ = "article"
     id = Column(Integer, primary_key=True)
-    title = Column(String)
-    body = Column(String)
-    status = Column(String)
+    title = Column(String, nullable=False)
+    body = Column(Text, nullable=False)
+    status = Column(String, nullable=False)
 
     refers = relationship("Reference", back_populates="articles")
+    comments = relationship("Comment", back_populates="article")
 
-
+# Таблица сессий
 class Token(Base):
     __tablename__ = "tokens"
     token = Column(String, primary_key=True, unique=True, nullable=False, index=True)
@@ -45,3 +51,15 @@ class Token(Base):
     user_id = Column(ForeignKey("users.id"))
 
     users = relationship("User", back_populates="tokens")
+
+
+class Comment(Base):
+    __tablename__ = 'comments'
+    id = Column(Integer, primary_key=True)
+    article_id = Column(Integer, ForeignKey("article.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    body = Column(String, nullable=False)
+
+    users = relationship("User", back_populates="comment")
+    article = relationship("Article", back_populates="comments")
+

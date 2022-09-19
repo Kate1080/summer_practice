@@ -1,13 +1,10 @@
-from pydantic import UUID4, BaseModel, EmailStr, Field, validator
-from typing import Optional
-import datetime
+from pydantic import BaseModel, EmailStr
 
 
 class UserBase(BaseModel):
     email: EmailStr
 
 
-#Sign-Up запрос
 class UserCreate(UserBase):
     name: str
     password: str
@@ -16,22 +13,12 @@ class UserCreate(UserBase):
         orm_mode = True
 
 
-#Тело ответа
 class UserOut(BaseModel):
     id: int
     name: str
 
     class Config:
         orm_mode = True
-
-
-# class TokenBase(BaseModel):
-#     token: UUID4 = Field(..., alias="access_token")
-#     expires: datetime
-#     token_type: Optional[str] = "bearer"
-#
-#     class Config:
-#         allow_population_by_field_name = True
 
 
 class ArticleBase(BaseModel):
@@ -79,13 +66,12 @@ class ArticleEditingOut(BaseModel):
         orm_mode = True
 
 
-# class AddAuthorIn(BaseModel):
-#     id_user: int
-#     id_user_new: int
-#     article_id: int
-#
-#     class Config:
-#         orm_mode = True
+class ArticleRejectIn(BaseModel):
+    comment: str
+
+
+class ArticleRejectOut(BaseModel):
+    comment: str
 
 
 class AddAuthorOut(BaseModel):
@@ -95,19 +81,32 @@ class AddAuthorOut(BaseModel):
         orm_mode = True
 
 
-# class Reference(BaseModel):
-#     id_us: str
-#     id_art: int
-#
-
-
 class RolesOut(BaseModel):
-    name: str
+    id: int
     role: int
 
     class Config:
         orm_mode = True
 
+
+class BlockedOut(BaseModel):
+    id: int
+    blocked: str
+
+    class Config:
+        orm_mode = True
+
+
+class CommentIn(BaseModel):
+    body: str
+
+
+class CommentOut(CommentIn):
+    id: int
+    body: str
+
+    class Config:
+        orm_mode = True
 
 
 
