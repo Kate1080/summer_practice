@@ -49,24 +49,75 @@ async def auth(user_data: OAuth2PasswordRequestForm = Depends()):
     response.set_cookie(key="session_id", value=session_id, httponly=True, secure=True)
     return response
 
-#
-# @app.get("/users/", response_model=list[schemas.UserOut])
-# def read_users(skip: int = 0, limit: int = 100, session_id: Union[str, None] = Cookie(default=None)):
-#     if session_id is None:
-#         raise HTTPException(status_code=401, detail="You do not have session id")
-#     db_user = crud.get_current_user(session_id)
-#     if db_user is None:
-#         raise HTTPException(status_code=404, detail="User not found")
-#     users = crud.get_users(skip=skip, limit=limit)
-#     return users
+
+# Просмотр пользователей
+@app.get("/users", response_model=list[schemas.UserOut])
+def read_users(skip: int = 0, limit: int = 100, session_id: Union[str, None] = Cookie(default=None)):
+    if session_id is None:
+        raise HTTPException(status_code=401, detail="You do not have session id")
+    db_user = crud.get_current_user(session_id)
+    if db_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    users = crud.get_users(skip=skip, limit=limit)
+    return users
 
 
-# @app.get("/users/{user_id}", response_model=schemas.UserOut)
-# def read_user(user_id: int, db: Session = Depends(get_db)):
-#     db_user = crud.get_user_by_id(db, user_id=user_id)
-#     if db_user is None:
-#         raise HTTPException(status_code=404, detail="User not found")
-#     return db_user
+# Поиск пользователя по имени
+@app.get("/user", response_model=schemas.UserOut)
+def read_user(user_name: str, session_id: Union[str, None] = Cookie(default=None)):
+    db_user = crud.get_current_user(session_id)
+    if db_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    db_user_new = crud.get_user_by_name(user_name=user_name)
+    return db_user_new
+
+
+# Блокировка пользователя администратором:
+@app.post("/user/block", response_model=schemas.BlockedOut)
+def block_user(user_id: int, session_id: Union[str, None] = Cookie(default=None)):
+    if session_id is None:
+        raise HTTPException(status_code=401, detail="You do not have session id")
+    db_user = crud.get_current_user(session_id)
+    if db_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if db_user.role & constant.admin != constant.admin:
+        raise HTTPException(status_code=403, detail="Permission denied")
+    db_user_another = crud.get_user_by_id(user_id=user_id)
+    if db_user_another is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return crud.block_user(user_id=user_id)
+
+
+# Разблокировка пользователя администратором:
+@app.post("/user/unblock", response_model=schemas.BlockedOut)
+def unblock_user(user_id: int, session_id: Union[str, None] = Cookie(default=None)):
+    if session_id is None:
+        raise HTTPException(status_code=401, detail="You do not have session id")
+    db_user = crud.get_current_user(session_id)
+    if db_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if db_user.role & constant.admin != constant.admin:
+        raise HTTPException(status_code=403, detail="Permission denied")
+    db_user_another = crud.get_user_by_id(user_id=user_id)
+    if db_user_another is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return crud.unblock_user(user_id=user_id)
+
+
+# Изменение роли пользователя администратором:
+@app.post("/user/change_role", response_model=schemas.RolesOut)
+def approved_change_role(user_id: int, role: int, session_id: Union[str, None] = Cookie(default=None)):
+    if session_id is None:
+        raise HTTPException(status_code=401, detail="You do not have session id")
+    db_user = crud.get_current_user(session_id)
+    if db_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if db_user.role & constant.admin != constant.admin:
+        raise HTTPException(status_code=403, detail="Permission denied")
+    db_user_another = crud.get_user_by_id(user_id=user_id)
+    if db_user_another is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return crud.approve_change_role(user_id=user_id, role=role)
 
 
 # Создание новой статьи автором:
@@ -84,7 +135,7 @@ def create_article(article: schemas.ArticleCreate, session_id: Union[str, None] 
 
 
 # Добавление новых авторов к своей статье:
-@app.post("/article/add/", response_model=schemas.AddAuthorOut)
+@app.post("/article/add_author", response_model=schemas.AddAuthorOut)
 def add_author(article_id: int, id_user_new: int, session_id: Union[str, None] = Cookie(default=None)):
     if session_id is None:
         raise HTTPException(status_code=401, detail="You do not have session id")
@@ -107,6 +158,27 @@ def add_author(article_id: int, id_user_new: int, session_id: Union[str, None] =
     if db_user_new.role & constant.writer != constant.writer:
         raise HTTPException(status_code=403, detail="Permission denied")
     return crud.add_author(id_user_new=id_user_new, article_id=article_id)
+
+
+# Редактирование статьи в статусе "черновик":
+@app.post("/article/edit", response_model=schemas.ArticleEditingOut)
+def edit_draft(article: schemas.ArticleEditingIn, session_id: Union[str, None] = Cookie(default=None)):
+    if session_id is None:
+        raise HTTPException(status_code=401, detail="You do not have session id")
+    db_user = crud.get_current_user(session_id)
+    if db_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if db_user.role & constant.writer != constant.writer:
+        raise HTTPException(status_code=403, detail="Permission denied")
+    db_article = crud.get_article_by_id(article_id=article.id)
+    if db_article is None:
+        raise HTTPException(status_code=404, detail="Article not found")
+    if db_article.status != constant.draft:
+        raise HTTPException(status_code=404, detail="Permission denied")
+    db_check = crud.check_author_article(article_id=article.id, user_id=db_user.id)
+    if db_check is None:
+        raise HTTPException(status_code=403, detail="Permission denied")
+    return crud.edit_draft(article=article)
 
 
 # Публикация статьи автором:
@@ -141,7 +213,7 @@ def change_approved_draft(article_id: int, session_id: Union[str, None] = Cookie
     db_article = crud.get_article_by_id(article_id=article_id)
     if db_article is None:
         raise HTTPException(status_code=404, detail="Article not found")
-    if db_article.status != constant.approved:
+    if db_article.status != constant.approved or db_article.status != constant.rejected:
         raise HTTPException(status_code=404, detail="Permission denied")
     db_check = crud.check_author_article(article_id=article_id, user_id=db_user.id)
     if db_check is None:
@@ -149,29 +221,8 @@ def change_approved_draft(article_id: int, session_id: Union[str, None] = Cookie
     return crud.change_approved_draft(article_id=article_id)
 
 
-# Редактирование статьи в статусе "черновик":
-@app.post("/article/edit", response_model=schemas.ArticleEditingOut)
-def edit_draft(article: schemas.ArticleEditingIn, session_id: Union[str, None] = Cookie(default=None)):
-    if session_id is None:
-        raise HTTPException(status_code=401, detail="You do not have session id")
-    db_user = crud.get_current_user(session_id)
-    if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    if db_user.role & constant.writer != constant.writer:
-        raise HTTPException(status_code=403, detail="Permission denied")
-    db_article = crud.get_article_by_id(article_id=article.id)
-    if db_article is None:
-        raise HTTPException(status_code=404, detail="Article not found")
-    if db_article.status != constant.draft:
-        raise HTTPException(status_code=404, detail="Permission denied")
-    db_check = crud.check_author_article(article_id=article.id, user_id=db_user.id)
-    if db_check is None:
-        raise HTTPException(status_code=403, detail="Permission denied")
-    return crud.edit_draft(article=article)
-
-
 # Просмотр статей в статусе "опубликована" модератором:
-@app.get("/article/{user_id}", response_model=list[schemas.ArticleReadOut])
+@app.get("/articles", response_model=list[schemas.ArticleReadOut])
 def read_status_published(skip: int = 0, limit: int = 100, session_id: Union[str, None] = Cookie(default=None)):
     if session_id is None:
         raise HTTPException(status_code=401, detail="You do not have session id")
@@ -203,8 +254,8 @@ def change_published_approved(article_id: int, session_id: Union[str, None] = Co
 
 
 # Отклонение статьи модератором:
-@app.post("/article/reject", response_model=schemas.ArticleRejectOut)
-def change_published_rejected(comment: schemas.ArticleRejectIn, article_id: int, session_id: Union[str, None] = Cookie(default=None)):
+@app.post("/article/reject", response_model=schemas.ArticleReject)
+def change_published_rejected(comment: schemas.ArticleReject, article_id: int, session_id: Union[str, None] = Cookie(default=None)):
     if session_id is None:
         raise HTTPException(status_code=401, detail="You do not have session id")
     db_user = crud.get_current_user(session_id)
@@ -221,56 +272,8 @@ def change_published_rejected(comment: schemas.ArticleRejectIn, article_id: int,
     return comment
 
 
-# Изменение роли пользователя администратором:
-@app.post("/roles/approve", response_model=schemas.RolesOut)
-def approved_change_role(user_id: int, role: int, session_id: Union[str, None] = Cookie(default=None)):
-    if session_id is None:
-        raise HTTPException(status_code=401, detail="You do not have session id")
-    db_user = crud.get_current_user(session_id)
-    if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    if db_user.role & constant.admin != constant.admin:
-        raise HTTPException(status_code=403, detail="Permission denied")
-    db_user_another = crud.get_user_by_id(user_id=user_id)
-    if db_user_another is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return crud.approve_change_role(user_id=user_id, role=role)
-
-
-# Блокировка пользователя администратором:
-@app.post("/block", response_model=schemas.BlockedOut)
-def block_user(user_id: int, session_id: Union[str, None] = Cookie(default=None)):
-    if session_id is None:
-        raise HTTPException(status_code=401, detail="You do not have session id")
-    db_user = crud.get_current_user(session_id)
-    if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    if db_user.role & constant.admin != constant.admin:
-        raise HTTPException(status_code=403, detail="Permission denied")
-    db_user_another = crud.get_user_by_id(user_id=user_id)
-    if db_user_another is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return crud.block_user(user_id=user_id)
-
-
-# Разблокировка пользователя администратором:
-@app.post("/unblock", response_model=schemas.BlockedOut)
-def unblock_user(user_id: int, session_id: Union[str, None] = Cookie(default=None)):
-    if session_id is None:
-        raise HTTPException(status_code=401, detail="You do not have session id")
-    db_user = crud.get_current_user(session_id)
-    if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    if db_user.role & constant.admin != constant.admin:
-        raise HTTPException(status_code=403, detail="Permission denied")
-    db_user_another = crud.get_user_by_id(user_id=user_id)
-    if db_user_another is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return crud.unblock_user(user_id=user_id)
-
-
 # Добавление комментария к статье:
-@app.post("/comment", response_model=schemas.CommentOut)
+@app.post("/article/comment", response_model=schemas.CommentOut)
 def make_comment(comment: schemas.CommentIn, article_id: int, session_id: Union[str, None] = Cookie(default=None)):
     if session_id is None:
         raise HTTPException(status_code=401, detail="You do not have session id")
@@ -285,7 +288,8 @@ def make_comment(comment: schemas.CommentIn, article_id: int, session_id: Union[
     return crud.make_comment(article_id=article_id, user_id=db_user.id, comment=comment)
 
 
-@app.post("/delete/comment")
+# Удаление комментария модератером:
+@app.post("/article/delete_comment")
 def delete_comment(comment_id: int, session_id: Union[str, None] = Cookie(default=None)):
     if session_id is None:
         raise HTTPException(status_code=401, detail="You do not have session id")
@@ -299,6 +303,34 @@ def delete_comment(comment_id: int, session_id: Union[str, None] = Cookie(defaul
         raise HTTPException(status_code=404, detail="Comment not found")
     crud.delete_comment(comment_id=comment_id)
     return {"massage": "Comment deleted"}
+
+
+# Оценка статьи:
+@app.post("/article/rate", response_model=schemas.ArticleRatingOut)
+def rating_article(article_id: int, rating: int, session_id: Union[str, None] = Cookie(default=None)):
+    if session_id is None:
+        raise HTTPException(status_code=401, detail="You do not have session id")
+    db_user = crud.get_current_user(session_id)
+    if db_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    db_article = crud.get_article_by_id(article_id=article_id)
+    if db_article is None:
+        raise HTTPException(status_code=404, detail="Article not found")
+    if db_article.status != constant.approved:
+        raise HTTPException(status_code=404, detail="Permission denied")
+    return crud.rating_article(user_id=db_user.id, article_id=article_id, rating=rating)
+
+
+# Получение "свежих" статей
+@app.get("/articles/new", response_model=list[schemas.NewArticleOut])
+def new_articles(skip: int = 0, limit: int = 100, session_id: Union[str, None] = Cookie(default=None)):
+    if session_id is None:
+        raise HTTPException(status_code=401, detail="You do not have session id")
+    db_user = crud.get_current_user(session_id)
+    if db_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    articles = crud.get_new_articles(skip=skip, limit=limit)
+    return articles
 
 
 if __name__ == "__main__":

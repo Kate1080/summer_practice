@@ -8,6 +8,7 @@ import main
 import hashlib
 
 from datetime import datetime, timedelta
+from datetime import date
 
 
 # Хэширование пароля:
@@ -40,8 +41,14 @@ def get_user_by_id(user_id: int):
     return main.db_session.query(models.User).filter(models.User.id == user_id).first()
 
 
-# def get_users(skip: int = 0, limit: int = 100):
-#     return main.db_session.query(models.User).offset(skip).limit(limit).all()
+# Вывод пользователей
+def get_users(skip: int = 0, limit: int = 100):
+    return main.db_session.query(models.User).offset(skip).limit(limit).all()
+
+
+# Поиск пользователя по имени
+def get_user_by_name(user_name: str):
+    return main.db_session.query(models.User).filter(models.User.name == user_name).first()
 
 
 # Добавление в бд нового пользователя:
@@ -66,7 +73,7 @@ def create_article(article: schemas.ArticleCreate, user_id):
     db_article = models.Article(title=article.title, body=article.body, status=constant.draft)
     main.db_session.add(db_article)
     main.db_session.commit()
-    db_reference = models.Reference(id_us=user_id, id_art=db_article.id, status=db_article.status)
+    db_reference = models.Reference(id_us=user_id, id_art=db_article.id)
     main.db_session.add(db_reference)
     main.db_session.commit()
     return db_article
@@ -100,6 +107,7 @@ def get_article_published(skip: int = 0, limit: int = 100):
 def change_published_approved(article_id: int):
     changed_art = get_article_by_id(article_id=article_id)
     changed_art.status = constant.approved
+    changed_art.time_approved = date.today()
     main.db_session.add(changed_art)
     main.db_session.commit()
     return changed_art
@@ -201,3 +209,14 @@ def delete_comment(comment_id: int):
     main.db_session.delete(db_comment)
     main.db_session.commit()
 
+
+# Добавление оценки статьи в бд:
+def rating_article(user_id, article_id: int, rating: int):
+    db_rating = models.Rating(user_id=user_id, article_id=article_id, rating=rating)
+    main.db_session.add(db_rating)
+    main.db_session.commit()
+    return db_rating
+
+
+def get_new_articles(skip: int = 0, limit: int = 100):
+    return main.db_session.query(models.Article).filter(models.Article.time_approved == date.today()).offset(skip).limit(limit).all()

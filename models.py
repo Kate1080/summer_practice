@@ -30,6 +30,7 @@ class User(Base):
     refer = relationship("Reference", back_populates="users")
     tokens = relationship("Token", back_populates="users")
     comment = relationship("Comment", back_populates="users")
+    rating = relationship("Rating", back_populates="users")
 
 
 # Таблица статей
@@ -39,20 +40,24 @@ class Article(Base):
     title = Column(String, nullable=False)
     body = Column(Text, nullable=False)
     status = Column(String, nullable=False)
+    time_approved = Column(String)
 
     refers = relationship("Reference", back_populates="articles")
     comments = relationship("Comment", back_populates="article")
+    ratings = relationship("Rating", back_populates="articles")
+
 
 # Таблица сессий
 class Token(Base):
     __tablename__ = "tokens"
-    token = Column(String, primary_key=True, unique=True, nullable=False, index=True)
+    token = Column(String, primary_key=True, nullable=False, index=True)
     expires = Column(DateTime())
     user_id = Column(ForeignKey("users.id"))
 
     users = relationship("User", back_populates="tokens")
 
 
+# Таблица комментариев
 class Comment(Base):
     __tablename__ = 'comments'
     id = Column(Integer, primary_key=True)
@@ -62,4 +67,16 @@ class Comment(Base):
 
     users = relationship("User", back_populates="comment")
     article = relationship("Article", back_populates="comments")
+
+
+# Таблица оценок
+class Rating(Base):
+    __tablename__ = 'ratings'
+    id = Column(Integer, primary_key=True)
+    article_id = Column(Integer, ForeignKey("article.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    rating = Column(Integer)
+
+    articles = relationship("Article", back_populates="ratings")
+    users = relationship("User", back_populates="rating")
 

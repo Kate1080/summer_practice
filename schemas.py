@@ -16,6 +16,7 @@ class UserCreate(UserBase):
 class UserOut(BaseModel):
     id: int
     name: str
+    role: int
 
     class Config:
         orm_mode = True
@@ -66,11 +67,7 @@ class ArticleEditingOut(BaseModel):
         orm_mode = True
 
 
-class ArticleRejectIn(BaseModel):
-    comment: str
-
-
-class ArticleRejectOut(BaseModel):
+class ArticleReject(BaseModel):
     comment: str
 
 
@@ -109,6 +106,18 @@ class CommentOut(CommentIn):
         orm_mode = True
 
 
+class ArticleRatingOut(BaseModel):
+    id: int
+    rating: int
+
+    class Config:
+        orm_mode = True
 
 
+class NewArticleOut(BaseModel):
+    title: str
+    body: str
+
+    class Config:
+        orm_mode = True
 
